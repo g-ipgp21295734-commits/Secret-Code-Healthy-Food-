@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operation: Vitamin - Secret Code</title>
+    <style>
+        :root {
+            --bg-color: #0d0d0d;
+            --paper-color: #e3d3b6;
+            --spy-red: #b30000;
+            --spy-gold: #ffd700;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #e0e0e0;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            cursor: crosshair;
+        }
+
+        #start-overlay {
+            position: fixed;
+            top:0; left:0; width:100%; height:100%;
+            background: #000;
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #score-board {
+            position: fixed;
+            top: 20px;
+            right: 30px;
+            font-size: 1.4rem;
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 8px 15px;
+            background: rgba(0,0,0,0.8);
+            z-index: 100;
+        }
+
+        #game-container {
+            max-width: 800px;
+            width: 90%;
+            margin-top: 60px;
+            text-align: center;
+            background: #1a1a1a;
+            padding: 40px;
+            border: 2px solid #333;
+            box-shadow: 0 0 50px black;
+        }
+
+        /* SHAPE CSS - REFIXED FOR CLARITY */
+        .shape { width: 40px; height: 40px; background: var(--spy-red); display: inline-block; position: relative; margin: 5px; }
+        .pentagon { clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); }
+        .hexagon { clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%); }
+        .octagon { clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%); }
+        .circle { border-radius: 50%; }
+        .square { }
+        .triangle { width: 0; height: 0; background: transparent; border-left: 20px solid transparent; border-right: 20px solid transparent; border-bottom: 40px solid var(--spy-red); }
+        .diamond { transform: rotate(45deg); width: 30px; height: 30px; margin: 5px; }
+        .star { clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%); }
+        .heart { background: transparent; }
+        .heart::before, .heart::after { content: ""; position: absolute; top: 0; width: 20px; height: 32px; background: var(--spy-red); border-radius: 20px 20px 0 0; }
+        .heart::before { left: 20px; transform: rotate(-45deg); transform-origin: 0 100%; }
+        .heart::after { left: 0; transform: rotate(45deg); transform-origin: 100% 100%; }
+
+        .key-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            align-items: center;
+        }
+
+        .key-item { display: flex; align-items: center; justify-content: center; gap: 10px; }
+
+        #code-sheet {
+            display: none;
+            background: var(--paper-color);
+            color: #2e2418;
+            padding: 30px;
+            margin: 20px auto;
+            border: 1px solid #b5a489;
+            box-shadow: 10px 10px 0px #000;
+        }
+
+        #victory-screen {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.98);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+
+        .suitcase { width: 250px; height: 180px; background: #3d2b1f; border: 5px solid #8b4513; border-radius: 10px; position: relative; }
+        .lid { width: 100%; height: 50%; background: #4e3629; border-bottom: 2px solid #ffd700; transform-origin: top; animation: open-lid 1.5s forwards; }
+        @keyframes open-lid { to { transform: rotateX(-110deg); } }
+        .treasure { position: absolute; bottom: 10px; width: 100%; text-align: center; font-size: 3rem; }
+
+        canvas { position: absolute; top: 0; left: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <button onclick="startMission()" style="padding: 20px 50px; font-size: 1.5rem; color: #0f0; border: 2px solid #0f0; background: none; cursor: pointer;">INITIALIZE MISSION</button>
+    </div>
+
+    <div id="score-board">SCORE: <span id="score">0</span></div>
+
+    <div id="game-container">
+        <h1>Operation: Nutri-Vault</h1>
+        
+        <div id="question-area">
+            <p id="question-text" style="font-size: 1.3rem;">Scanning for intel...</p>
+            <div id="options" class="options-container"></div>
+        </div>
+
+        <div id="collected-codes" style="margin: 20px; padding: 15px; background: #111; border: 1px dashed #444; min-height: 50px;"></div>
+
+        <div id="code-sheet">
+            <h3 style="text-align: center; text-decoration: underline;">CYPHER REFERENCE</h3>
+            <div class="key-grid">
+                <div class="key-item"><div class="shape hexagon"></div> = 6</div>
+                <div class="key-item"><div class="shape pentagon"></div> = 5</div>
+                <div class="key-item"><div class="shape circle"></div> = 0</div>
+                <div class="key-item"><div class="shape triangle"></div> = 3</div>
+                <div class="key-item"><div class="shape square"></div> = 4</div>
+                <div class="key-item"><div class="shape octagon"></div> = 8</div>
+                <div class="key-item"><div class="shape diamond"></div> = 1</div>
+                <div class="key-item"><div class="shape heart"></div> = 2</div>
+                <div class="key-item"><div class="shape star"></div> = 7</div>
+            </div>
+        </div>
+
+        <div id="password-section" style="display:none; margin-top:20px;">
+            <p>ENTER THE DECRYPTED SECURITY KEY:</p>
+            <input type="text" id="final-pass" maxlength="6" style="background:#000; color:#0f0; border:1px solid #0f0; padding:15px; font-size:2rem; text-align:center; width:200px;">
+            <br><br>
+            <button onclick="checkPassword()" style="background:var(--spy-red); color:white; padding:15px 30px; font-size:1.2rem;">OPEN VAULT</button>
+        </div>
+    </div>
+
+    <div id="victory-screen">
+        <div class="suitcase"><div class="lid"></div><div class="treasure">💰🪙💵</div></div>
+        <h1 style="color: gold; margin-top: 50px;">MISSION ACCOMPLISHED!</h1>
+        <p id="final-stats" style="font-size: 1.5rem;"></p>
+        <p style="color:#aaa;">You are a top-tier Health Agent.</p>
+        <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px;">NEW MISSION</button>
+        <canvas id="confetti"></canvas>
+    </div>
+
+    <script>
+        let audioCtx;
+        function startMission() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            document.getElementById('start-overlay').style.display = 'none';
+            loadQuestion();
+        }
+
+        function playSound(f, type, d) {
+            if(!audioCtx) return;
+            let o = audioCtx.createOscillator();
+            let g = audioCtx.createGain();
+            o.type = type; o.frequency.setValueAtTime(f, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + d);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + d);
+        }
+
+        const questions = [
+            { q: "A tropical fruit with a spiky skin, helps digestion and boosts immunity.", a: "Pineapple", shape: "pentagon" },
+            { q: "A green tree-like vegetable. Makes your body strong and healthy.", a: "Broccoli", shape: "hexagon" },
+            { q: "A crunchy orange vegetable. Good for eyes.", a: "Carrot", shape: "circle" },
+            { q: "A starchy vegetable. Gives energy.", a: "Potato", shape: "square" },
+            { q: "A soft, sweet fruit with fuzzy skin. Good for skin and digestion.", a: "Peach", shape: "star" },
+            { q: "A hard fruit with water inside. Keeps your body hydrated.", a: "Coconut", shape: "diamond" }
+        ];
+
+        let currentLevel = 0, score = 0, canPoints = true;
+        const secretPassword = "560471";
+
+        function loadQuestion() {
+            if (currentLevel >= questions.length) {
+                document.getElementById('question-area').style.display = 'none';
+                document.getElementById('code-sheet').style.display = 'block';
+                document.getElementById('password-section').style.display = 'block';
+                return;
+            }
+            canPoints = true;
+            const q = questions[currentLevel];
+            document.getElementById('question-text').innerText = q.q;
+            const opt = document.getElementById('options');
+            opt.innerHTML = "";
+            let pool = ["Pineapple", "Broccoli", "Carrot", "Potato", "Peach", "Coconut", "Apple", "Banana"];
+            let choices = [q.a, ...pool.filter(f => f !== q.a).sort(() => 0.5 - Math.random()).slice(0, 3)].sort(() => 0.5 - Math.random());
+            
+            choices.forEach(c => {
+                let b = document.createElement('button');
+                b.innerText = c;
+                b.onclick = () => {
+                    if (c === q.a) {
+                        playSound(600, 'sine', 0.2);
+                        if (canPoints) score += 10;
+                        document.getElementById('score').innerText = score;
+                        let s = document.createElement('div'); s.className = `shape ${q.shape}`;
+                        document.getElementById('collected-codes').appendChild(s);
+                        currentLevel++; loadQuestion();
+                    } else {
+                        playSound(150, 'sawtooth', 0.5);
+                        canPoints = false; alert("Incorrect data! Point lost, but retry for the code.");
+                    }
+                };
+                opt.appendChild(b);
+            });
+        }
+
+        function checkPassword() {
+            if(document.getElementById('final-pass').value === secretPassword) {
+                playSound(800, 'sine', 1);
+                document.getElementById('victory-screen').style.display = 'flex';
+                document.getElementById('final-stats').innerText = `TOTAL INTEL COLLECTED: ${score} POINTS`;
+                initConfetti();
+            } else {
+                playSound(100, 'square', 0.5);
+                alert("ACCESS DENIED! Check your shape mapping again.");
+            }
+        }
+
+        function initConfetti() {
+            const canvas = document.getElementById('confetti');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+            let pieces = Array.from({length:100}, () => ({
+                x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+                r: Math.random()*5+2, d: Math.random()*10, color: `hsl(${Math.random()*360}, 100%, 50%)`
+            }));
+            function update() {
+                ctx.clearRect(0,0,canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    ctx.beginPath(); ctx.fillStyle = p.color;
+                    ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+                    p.y += Math.cos(p.d) + 1 + p.r/2; p.x += Math.sin(p.d) * 2;
+                    if(p.y > canvas.height) p.y = -10;
+                });
+                requestAnimationFrame(update);
+            }
+            update();
+        }
+    </script>
+</body>
+</html>
